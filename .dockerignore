@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+.env
+.env.local
+.env.*.local
+npm-debug.log
+screenshots
+screenshots/
+*screenshot*.png
+qa-*.png
