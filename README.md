@@ -1,56 +1,109 @@
 # Diagramify Mini
 
-Diagramify Mini is a cloud-ready mini diagram editor built with React, TypeScript, Vite, and AWS Cognito. It demonstrates protected authentication flows, local diagram persistence behind a storage abstraction, Dockerized production builds, GitHub Actions CI, and an AWS-ready deployment plan.
+Diagramify Mini is an authenticated PlantUML workspace for creating, saving, previewing, importing, and exporting diagrams.
 
-## Why This Project Exists
+The application uses AWS Cognito for authentication, keeps diagrams behind a storage abstraction, and provides a split editor with a live PlantUML preview.
 
-This project was built as an internship-focused proof of practical frontend, cloud, and DevOps readiness. The goal is not to be a full diagramming platform. The goal is to show that a small product can still use clear architecture, secure authentication boundaries, repeatable builds, CI, deployment planning, and cost-aware AWS decisions.
+![Diagramify Mini editor](diagramify-editor-screenshot.png)
 
 ## Features
 
-- Email/password sign-up and sign-in with AWS Cognito.
-- Email verification code flow.
-- Protected dashboard route for authenticated users.
-- Mini diagram editor with locally persisted diagrams.
-- Diagram storage abstraction through `DiagramStore`.
-- Docker production build using a static server.
-- GitHub Actions build workflow for pull requests and pushes to `main`.
-- AWS deployment plan for Amplify Hosting or S3 + CloudFront.
-
-## PlantUML Preview Security Note
-
-PlantUML preview is rendered through the public PlantUML server in v1. Sensitive diagrams should not be rendered through the public server. A self-hosted PlantUML renderer is planned for production use.
+* AWS Cognito sign-up and sign-in
+* Email verification flow
+* Protected application routes
+* User-scoped diagram dashboard
+* Create, rename, edit, and delete diagrams
+* PlantUML source editor
+* Live SVG preview
+* Automatic saving
+* Manual save with `Ctrl/Cmd + S`
+* Diagram zoom controls
+* Import `.puml`, `.plantuml`, and `.txt` files
+* Export PNG
+* Export SVG
+* Download PlantUML source
+* Local diagram persistence through a storage abstraction
 
 ## Tech Stack
 
-- React
-- TypeScript
-- Vite
-- React Router
-- AWS Cognito via `amazon-cognito-identity-js`
-- localStorage for current diagram persistence
-- Docker
-- GitHub Actions
+* React
+* TypeScript
+* Vite
+* React Router
+* Tailwind CSS
+* AWS Cognito
+* PlantUML
+* Pako
+* Docker
+* GitHub Actions
 
-## Architecture Overview
-
-Current flow:
-
-```text
-React/Vite -> Cognito -> Protected Dashboard -> Editor -> DiagramStore -> localStorage
-```
-
-`DiagramStore` is the key persistence boundary. The app currently uses `localDiagramStore`, but the dashboard and editor depend on the interface rather than directly depending on browser storage. This keeps the project small today while leaving a clean path to a future DynamoDB-backed store.
-
-Future cloud persistence flow:
+## How It Works
 
 ```text
-React/Vite -> Cognito -> API Gateway -> Lambda -> DynamoDB
+AWS Cognito
+     │
+     ▼
+Authenticated React App
+     │
+     ├── Dashboard
+     │      └── Diagram management
+     │
+     └── Editor
+            ├── PlantUML source
+            ├── Autosave
+            ├── Live preview
+            └── Import / export
+                     │
+                     ▼
+                DiagramStore
+                     │
+                     ▼
+                localStorage
 ```
 
-See [docs/architecture.md](docs/architecture.md) for diagrams and deeper architecture notes.
+The UI talks to a `DiagramStore` interface instead of directly coupling diagram management to browser storage.
 
-## Local Setup
+The current implementation uses `localStorage`.
+
+A future backend-backed store can implement the same interface without requiring the editor and dashboard to be redesigned.
+
+## PlantUML Rendering
+
+PlantUML source is compressed and encoded in the browser before being sent to the PlantUML rendering service.
+
+The editor supports:
+
+```text
+PlantUML source
+      │
+      ├── SVG live preview
+      ├── PNG export
+      └── SVG export
+```
+
+## Privacy Note
+
+The current version uses the public PlantUML server for rendering.
+
+Do not use the public renderer for confidential or sensitive diagrams.
+
+A self-hosted PlantUML server would be a safer option for private production workloads.
+
+## Authentication
+
+Authentication is handled through Amazon Cognito.
+
+Create a `.env.local` file:
+
+```env
+VITE_COGNITO_USER_POOL_ID=your_user_pool_id
+VITE_COGNITO_CLIENT_ID=your_app_client_id
+VITE_COGNITO_REGION=your_region
+```
+
+The Cognito app client should be configured for a browser application without a client secret.
+
+## Local Development
 
 Install dependencies:
 
@@ -58,41 +111,34 @@ Install dependencies:
 npm install
 ```
 
-Create `.env.local`:
-
-```bash
-VITE_COGNITO_USER_POOL_ID=ap-south-1_example
-VITE_COGNITO_CLIENT_ID=exampleclientid
-VITE_COGNITO_REGION=ap-south-1
-```
-
-Start the app:
+Start Vite:
 
 ```bash
 npm run dev
 ```
 
-## Environment Variables
+Build:
 
-Required Vite environment variables:
+```bash
+npm run build
+```
 
-| Variable | Purpose |
-| --- | --- |
-| `VITE_COGNITO_USER_POOL_ID` | Cognito User Pool ID |
-| `VITE_COGNITO_CLIENT_ID` | Cognito SPA app client ID |
-| `VITE_COGNITO_REGION` | AWS region, currently `ap-south-1` |
+Validate:
 
-Do not commit `.env.local`. Vite exposes `VITE_*` values to the browser bundle, so these values should be treated as public configuration, not AWS credentials.
+```bash
+npm run typecheck
+npm run lint
+```
 
-## Docker Setup
+## Docker
 
-Build the image:
+Build:
 
 ```bash
 docker build -t diagramify-mini .
 ```
 
-Run the container:
+Run:
 
 ```bash
 docker run --rm -p 4173:4173 diagramify-mini
@@ -104,71 +150,41 @@ Or use Docker Compose:
 docker compose up --build
 ```
 
-Open `http://localhost:4173`.
+## Storage
 
-## Build And Verification Commands
+The current store supports:
 
-```bash
-npm run dev
-npm run build
-npm run preview
-npm run lint
-npm run typecheck
+```text
+list
+get
+create
+rename
+delete
+save
 ```
 
-The GitHub Actions workflow runs dependency installation and `npm run build`. It does not deploy and does not require AWS credentials.
+Each operation is scoped by the authenticated user ID.
 
-## AWS Cognito Setup Summary
+The storage interface is designed so another persistence layer can replace the current browser-backed implementation later.
 
-- Region: `ap-south-1`
-- User pool authentication.
-- Email/password only.
-- Self-registration enabled.
-- Email verification code flow.
-- SPA app client with client secret disabled.
-- Required env vars: `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, `VITE_COGNITO_REGION`.
+## Project Structure
 
-See [docs/cognito-setup.md](docs/cognito-setup.md).
+```text
+src/
+├── auth/
+├── components/
+├── diagrams/
+│   ├── diagramStore.ts
+│   ├── localDiagramStore.ts
+│   └── types.ts
+├── editor/
+├── pages/
+│   ├── DashboardPage.tsx
+│   ├── EditorPage.tsx
+│   └── LoginPage.tsx
+└── routes/
+```
 
-## Storage Plan
+## License
 
-Current storage: browser `localStorage` through `localDiagramStore`.
-
-Future storage: DynamoDB through a backend-backed `DiagramStore` implementation, likely using API Gateway and Lambda.
-
-This staged approach keeps the first version easy to run locally and avoids AWS database cost until cloud persistence is needed.
-
-## Deployment Plan
-
-First deployment target: AWS Amplify Hosting for the static Vite build.
-
-Future option: S3 + CloudFront for a more explicit static hosting setup.
-
-No deployment workflow is included yet, and no AWS credentials are required in this repository. See [docs/deployment.md](docs/deployment.md).
-
-## Cost Safety Notes
-
-This project is designed to be free-tier safe:
-
-- Set up AWS Budgets before deploying.
-- Use a small monthly budget alert.
-- Avoid NAT Gateway, RDS, and EC2 for this mini app.
-- Avoid SMS MFA in Cognito.
-- Keep the app static/serverless-first.
-- Add DynamoDB only when cloud persistence is needed.
-- Monitor the Billing dashboard after deployment.
-
-See [docs/aws-cost-safety.md](docs/aws-cost-safety.md).
-
-## What I Learned / DevOps Relevance
-
-Diagramify Mini demonstrates how product work and DevOps thinking connect:
-
-- Cognito authentication and protected route design.
-- Local persistence behind an interface that can later move to DynamoDB.
-- Repeatable production builds with Docker.
-- CI validation with GitHub Actions.
-- Static-first AWS deployment planning.
-- Cost-safety decisions before adding cloud infrastructure.
-
-The result is a small but reviewable app that shows practical engineering judgment without overbuilding.
+MIT
