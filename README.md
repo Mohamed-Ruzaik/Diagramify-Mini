@@ -4,8 +4,6 @@ Diagramify Mini is an authenticated PlantUML workspace for creating, saving, pre
 
 The application uses AWS Cognito for authentication, keeps diagrams behind a storage abstraction, and provides a split editor with a live PlantUML preview.
 
-![Diagramify Mini editor](diagramify-editor-screenshot.png)
-
 ## Features
 
 * AWS Cognito sign-up and sign-in
